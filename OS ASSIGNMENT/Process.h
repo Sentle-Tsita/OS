@@ -1,17 +1,17 @@
-#include <stdio.h>
-
-#ifndef PCB_H
-#define PCB_H
+#ifndef PROCESS_H
+#define PROCESS_H
 
 typedef enum {
-    READY, RUNNING
+    READY,
+    RUNNING,
+    FINISHED
 } ProcessState;
 
-typedef struct PCB{
-    unsigned int pid;
-    unsigned int burstTime;
-    unsigned int arrivalTime;
-    unsigned int remainingTime;
+typedef struct {
+    int pid;
+    int arrivalTime;
+    int burstTime;
+    int remainingTime;
     ProcessState state;
 } PCB;
 
