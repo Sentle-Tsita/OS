@@ -1,1 +1,1 @@
-# OS-SHIT
+# OS
