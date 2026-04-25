@@ -1,9 +1,0 @@
-1. Struct for PCB -> PCB(p_id,burst_time,arrival time,remaining_time)->Enum for the process state -> program counter
-2. for context switch, store p_id and remaining_time
-3. Dispatcher -> calls context switch
-4. Report
-5. Makefile
-6. FCFS -> arrival time -> smallest p_id if arrival time is equal
-7. SJF -> shortest burst time ->  FCFS
-8. Ready queue -> array list -> methods in assignment
-9. Process.c, Dispatcher.c, Process.h, scheduling_algorithms.c
