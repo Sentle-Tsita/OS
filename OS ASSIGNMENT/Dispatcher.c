@@ -24,8 +24,6 @@ int isEmpty(Queue* q) {
     return q->size == 0;
 }
 
-// FIX 1: enqueue now returns an int — 1 on success, 0 if queue is full
-// Previously it silently dropped the process with no indication of failure
 int enqueue(Queue* q, PCB p) {
     if (q->size == MAX_PROCESSES) {
         printf("Error: Ready queue full! Process %d could not be enqueued.\n", p.pid);
@@ -68,11 +66,8 @@ PCB removeAt(Queue* q, int index) {
 PCB scheduleFCFS(Queue* q) {
     return dequeue(q);
 }
-
-// FIX 2 & 3: SJF now has an explicit tiebreaker
-// Previously, equal burst times silently fell back to queue order (FCFS-like)
-// Now ties are broken by: (1) arrival time — earlier arrival wins
-//                         (2) then PID — lower PID wins
+// ties are broken by: (1) arrival time — earlier arrival wins
+//                     (2) then PID — lower PID wins
 PCB scheduleSJF(Queue* q) {
     int index = 0;
 
@@ -135,8 +130,6 @@ void simulate(int algorithm) {
         printf("\nTime %d:\n", time);
 
         // 1. Check arrivals
-        // FIX 1 applied: enqueue return value is now checked
-        // Previously any failed enqueue was completely invisible
         for (int i = 0; i < totalProcesses; i++) {
             if (processes[i].arrivalTime == time) {
                 printf("Process %d arrived\n", processes[i].pid);
