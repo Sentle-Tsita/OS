@@ -24,12 +24,18 @@ int isEmpty(Queue* q) {
     return q->size == 0;
 }
 
-void enqueue(Queue* q, PCB p) {
-    if (q->size == MAX_PROCESSES) return;
+// FIX 1: enqueue now returns an int — 1 on success, 0 if queue is full
+// Previously it silently dropped the process with no indication of failure
+int enqueue(Queue* q, PCB p) {
+    if (q->size == MAX_PROCESSES) {
+        printf("Error: Ready queue full! Process %d could not be enqueued.\n", p.pid);
+        return 0;  // failure
+    }
 
     q->rear = (q->rear + 1) % MAX_PROCESSES;
     q->data[q->rear] = p;
     q->size++;
+    return 1;  // success
 }
 
 PCB dequeue(Queue* q) {
@@ -63,7 +69,10 @@ PCB scheduleFCFS(Queue* q) {
     return dequeue(q);
 }
 
-// SJF (non-preemptive)
+// FIX 2 & 3: SJF now has an explicit tiebreaker
+// Previously, equal burst times silently fell back to queue order (FCFS-like)
+// Now ties are broken by: (1) arrival time — earlier arrival wins
+//                         (2) then PID — lower PID wins
 PCB scheduleSJF(Queue* q) {
     int index = 0;
 
@@ -71,8 +80,26 @@ PCB scheduleSJF(Queue* q) {
         int current = (q->front + i) % MAX_PROCESSES;
         int best    = (q->front + index) % MAX_PROCESSES;
 
-        if (q->data[current].remainingTime < q->data[best].remainingTime) {
+        int currentBurst   = q->data[current].remainingTime;
+        int bestBurst      = q->data[best].remainingTime;
+        int currentArrival = q->data[current].arrivalTime;
+        int bestArrival    = q->data[best].arrivalTime;
+        int currentPID     = q->data[current].pid;
+        int bestPID        = q->data[best].pid;
+
+        if (currentBurst < bestBurst) {
+            // Clearly shorter — pick it
             index = i;
+        } else if (currentBurst == bestBurst) {
+            // Tie on burst — break by arrival time
+            if (currentArrival < bestArrival) {
+                index = i;
+            } else if (currentArrival == bestArrival) {
+                // Tie on arrival too — break by PID
+                if (currentPID < bestPID) {
+                    index = i;
+                }
+            }
         }
     }
 
@@ -108,10 +135,15 @@ void simulate(int algorithm) {
         printf("\nTime %d:\n", time);
 
         // 1. Check arrivals
+        // FIX 1 applied: enqueue return value is now checked
+        // Previously any failed enqueue was completely invisible
         for (int i = 0; i < totalProcesses; i++) {
             if (processes[i].arrivalTime == time) {
                 printf("Process %d arrived\n", processes[i].pid);
-                enqueue(&readyQueue, processes[i]);
+                if (!enqueue(&readyQueue, processes[i])) {
+                    printf("Warning: Process %d was lost due to full queue!\n",
+                           processes[i].pid);
+                }
             }
         }
 
