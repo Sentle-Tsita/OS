@@ -37,6 +37,13 @@ int enqueue(Queue* q, PCB p) {
 }
 
 PCB dequeue(Queue* q) {
+    if (isEmpty(q)) {
+        printf("Error: Attempted to dequeue from an empty queue!\n");
+        // return a sentinel/invalid PCB so the caller knows it failed
+        PCB empty = {-1, -1, -1, -1, FINISHED};
+        return empty;
+    }
+
     PCB p = q->data[q->front];
     q->front = (q->front + 1) % MAX_PROCESSES;
     q->size--;
