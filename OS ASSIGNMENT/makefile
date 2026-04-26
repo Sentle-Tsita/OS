@@ -3,8 +3,8 @@ CFLAGS = -Wall
 
 all: dispatcher
 
-dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) dispatcher.c -o dispatcher
+dispatcher: Dispatcher.c
+	$(CC) $(CFLAGS) Dispatcher.c -o dispatcher
 
 clean:
 	rm -f dispatcher
