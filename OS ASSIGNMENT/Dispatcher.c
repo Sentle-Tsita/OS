@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "process.h"
+#include "Process.h"
 
 #define MAX_PROCESSES 100
 #define TIME_QUANTUM 3        // Round Robin time slice
