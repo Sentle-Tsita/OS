@@ -3,7 +3,8 @@
 #include "process.h"
 
 #define MAX_PROCESSES 100
-#define TIME_QUANTUM 3   // Round Robin time slice
+#define TIME_QUANTUM 3        // Round Robin time slice
+#define CONTEXT_SWITCH_COST 1 // Cost in time units for a context switch
 
 // ---------------- QUEUE ----------------
 
@@ -24,22 +25,22 @@ int isEmpty(Queue* q) {
     return q->size == 0;
 }
 
+// Returns 1 on success, 0 if queue is full
 int enqueue(Queue* q, PCB p) {
     if (q->size == MAX_PROCESSES) {
         printf("Error: Ready queue full! Process %d could not be enqueued.\n", p.pid);
-        return 0;  // failure
+        return 0;
     }
 
     q->rear = (q->rear + 1) % MAX_PROCESSES;
     q->data[q->rear] = p;
     q->size++;
-    return 1;  // success
+    return 1;
 }
 
 PCB dequeue(Queue* q) {
     if (isEmpty(q)) {
         printf("Error: Attempted to dequeue from an empty queue!\n");
-        // return a sentinel/invalid PCB so the caller knows it failed
         PCB empty = {-1, -1, -1, -1, FINISHED};
         return empty;
     }
@@ -73,8 +74,11 @@ PCB removeAt(Queue* q, int index) {
 PCB scheduleFCFS(Queue* q) {
     return dequeue(q);
 }
-// ties are broken by: (1) arrival time — earlier arrival wins
-//                     (2) then PID — lower PID wins
+
+// SJF (non-preemptive) with tiebreakers:
+// 1. Shortest burst time wins
+// 2. Tie on burst -> earlier arrival wins
+// 3. Tie on arrival -> lower PID wins
 PCB scheduleSJF(Queue* q) {
     int index = 0;
 
@@ -90,14 +94,11 @@ PCB scheduleSJF(Queue* q) {
         int bestPID        = q->data[best].pid;
 
         if (currentBurst < bestBurst) {
-            // Clearly shorter — pick it
             index = i;
         } else if (currentBurst == bestBurst) {
-            // Tie on burst — break by arrival time
             if (currentArrival < bestArrival) {
                 index = i;
             } else if (currentArrival == bestArrival) {
-                // Tie on arrival too — break by PID
                 if (currentPID < bestPID) {
                     index = i;
                 }
@@ -112,7 +113,7 @@ PCB scheduleSJF(Queue* q) {
 
 void simulate(int algorithm) {
 
-    // Sample processes (you can modify these)
+    // Sample processes
     PCB processes[] = {
         {0, 0, 8, 8, READY},
         {1, 1, 4, 4, READY},
@@ -129,6 +130,7 @@ void simulate(int algorithm) {
 
     PCB* running = NULL;
     int quantumCounter = 0;
+    int previousPID = -1;  // -1 means CPU was idle, used for context switch tracking
 
     printf("\n--- Simulation Start ---\n");
 
@@ -139,9 +141,9 @@ void simulate(int algorithm) {
         // 1. Check arrivals
         for (int i = 0; i < totalProcesses; i++) {
             if (processes[i].arrivalTime == time) {
-                printf("Process %d arrived\n", processes[i].pid);
+                printf("  Process %d arrived\n", processes[i].pid);
                 if (!enqueue(&readyQueue, processes[i])) {
-                    printf("Warning: Process %d was lost due to full queue!\n",
+                    printf("  Warning: Process %d was lost due to full queue!\n",
                            processes[i].pid);
                 }
             }
@@ -154,31 +156,41 @@ void simulate(int algorithm) {
 
             if (algorithm == 1) {
                 *running = scheduleFCFS(&readyQueue);
-                printf("Dispatching (FCFS) P%d\n", running->pid);
+                printf("  Dispatching (FCFS) P%d\n", running->pid);
             }
             else if (algorithm == 2) {
                 *running = scheduleSJF(&readyQueue);
-                printf("Dispatching (SJF) P%d\n", running->pid);
+                printf("  Dispatching (SJF) P%d\n", running->pid);
             }
             else if (algorithm == 3) {
-                *running = dequeue(&readyQueue); // Round Robin
-                printf("Dispatching (RR) P%d\n", running->pid);
+                *running = dequeue(&readyQueue);
+                printf("  Dispatching (RR) P%d\n", running->pid);
                 quantumCounter = 0;
             }
 
             running->state = RUNNING;
+
+            // Context switch — only charged when switching between two processes
+            // No cost if CPU was idle (previousPID == -1)
+            if (previousPID != -1 && previousPID != running->pid) {
+                printf("  Context switch: P%d -> P%d (cost: %d time unit(s))\n",
+                       previousPID, running->pid, CONTEXT_SWITCH_COST);
+                time += CONTEXT_SWITCH_COST;
+            }
+
+            previousPID = running->pid;
         }
 
         // 3. Execute process
         if (running != NULL) {
 
             running->remainingTime--;
-            printf("Running P%d (remaining: %d)\n",
+            printf("  Running P%d (remaining: %d)\n",
                    running->pid, running->remainingTime);
 
             // Case 1: Process finished
             if (running->remainingTime == 0) {
-                printf("Process %d finished\n", running->pid);
+                printf("  Process %d finished\n", running->pid);
                 running->state = FINISHED;
                 free(running);
                 running = NULL;
@@ -191,7 +203,7 @@ void simulate(int algorithm) {
                 quantumCounter++;
 
                 if (quantumCounter == TIME_QUANTUM) {
-                    printf("Time slice expired for P%d\n", running->pid);
+                    printf("  Time slice expired for P%d\n", running->pid);
 
                     running->state = READY;
                     enqueue(&readyQueue, *running);
